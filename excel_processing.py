@@ -8,7 +8,8 @@ import io
 import time
 import logging
 import socket
-import streamlit.server.server
+
+from streamlit.runtime.scriptrunner import get_script_run_ctx
 
 path = os.path.dirname(os.path.abspath(__file__))
 
@@ -29,9 +30,9 @@ logger = logging.getLogger(__name__)
 def get_client_ip():
     try:
         # Try to get from Streamlit context
-        ctx = streamlit.server.server.SessionState
-        if hasattr(ctx, 'session_id'):
-            return st.session_state.get('_client_ip', 'Unknown')
+        ctx = get_script_run_ctx()
+        if ctx and hasattr(ctx, 'session_id'):
+            return ctx.session_id[:8]  # Use session ID as identifier
     except:
         pass
     
