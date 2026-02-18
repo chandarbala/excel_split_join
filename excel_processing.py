@@ -5,12 +5,8 @@ import pandas as pd
 import os
 import streamlit.components.v1 as components
 import io
-import psycopg2
 import time
-import configparser
 import logging
-from sqlalchemy import create_engine
-from sqlalchemy.engine import URL
 
 
 path = os.path.dirname(os.path.abspath(__file__))
