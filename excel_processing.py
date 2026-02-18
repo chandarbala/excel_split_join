@@ -7,7 +7,8 @@ import streamlit.components.v1 as components
 import io
 import time
 import logging
-
+import socket
+import streamlit.server.server
 
 path = os.path.dirname(os.path.abspath(__file__))
 
@@ -22,6 +23,31 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+
+# Get client IP address
+def get_client_ip():
+    try:
+        # Try to get from Streamlit context
+        ctx = streamlit.server.server.SessionState
+        if hasattr(ctx, 'session_id'):
+            return st.session_state.get('_client_ip', 'Unknown')
+    except:
+        pass
+    
+    try:
+        # Fallback: get from socket
+        hostname = socket.gethostname()
+        ip = socket.gethostbyname(hostname)
+        return ip
+    except:
+        return 'Unknown'
+
+client_ip = get_client_ip()
+logger.info(f"Excel Processing Tool Started - Client IP: {client_ip}")
+
+
+
 logger.info("Excel Processing Tool Started")
 
 
