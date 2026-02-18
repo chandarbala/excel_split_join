@@ -8,11 +8,25 @@ import io
 import psycopg2
 import time
 import configparser
+import logging
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 
 
 path = os.path.dirname(os.path.abspath(__file__))
+
+# Configure logging
+log_file = os.path.join(path, "excel_processing.log")
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+logger.info("Excel Processing Tool Started")
 
 
 # Page config
@@ -23,54 +37,6 @@ st.image(path + "/logo.png",width=100)
 st.header("Data Processing Tool")
 #st.image()
 #st.title("Welcome to CMWSSB Data Processing Tool")
-
-
-def db_connection():
-            with st.expander("Upload to Database", expanded=True):
-                col1, col2, col3 = st.columns(3)
-
-            # Left: Config file upload
-            with col1:
-                config_file = st.file_uploader("Upload DB Config (JSON)", type=["json"])
-
-            # Middle: OR text
-            with col2:
-                st.markdown("<br><h4 style='text-align: center;'>OR</h4>", unsafe_allow_html=True)
-
-            # Right: Manual inputs
-            with col3:
-                host = st.text_input("Host")
-                port = st.text_input("Port")
-                dbname = st.text_input("Database")
-                user = st.text_input("User")
-                password = st.text_input("Password", type="password")
-
-            # Connect button
-#            connect_btn = st.button("🔗 Connect to Database")
-               
-            if st.button("🔗 Connect to Database"):
-                try:
-                    if config_file:
-                        import json
-                        config = json.load(config_file)
-                        conn = psycopg2.connect(**config)
-                    else:
-                        conn = psycopg2.connect(
-                            host=host,
-                            port=port,
-                            dbname=dbname,
-                            user=user,
-                            password=password,
-                        )
-                except Exception as e:
-                    st.error(f"❌ Connection failed: {e}") 
-                    conn = None
-            else:
-                    st.warning("Please provide connection details and click Connect.")
-                    conn = None    
-                                       
-            return conn
-
 
 
 # ✅ Safe initialization for session_state keys
@@ -92,6 +58,8 @@ action =st.radio(
         options=["Combine & Download",  "Split"],
         index=None
     )
+if action:
+    logger.info(f"User selected action: {action}")
 
 
 
@@ -118,26 +86,34 @@ if action != "Message" and action != None:
 
     # Process button
     if st.button("Process Files") and uploaded_files:
+        logger.info(f"Processing {len(uploaded_files)} files in {input_format} format")
         dfs = []
         for file in uploaded_files:
             file.seek(0)  # reset pointer
+            logger.info(f"Reading file: {file.name}")
             if input_format == "Excel":
                 sheets = pd.read_excel(file, sheet_name=None)
                 for sheet_name, df in sheets.items():
                     if exclude_sheet and sheet_name == exclude_sheet:
+                        logger.info(f"Excluding sheet: {sheet_name}")
                         continue
                     df['file_name'] = os.path.basename(file.name)
                     df['sheet_name'] = sheet_name
+                    logger.info(f"Added sheet '{sheet_name}' with {len(df)} rows")
                     dfs.append(df)
             else:  # CSV
                 df = pd.read_csv(file)
                 df['file_name'] = os.path.basename(file.name)
+                logger.info(f"Added CSV file with {len(df)} rows")
                 dfs.append(df)
 
         if dfs:
-            st.session_state["combined_df"] = pd.concat(dfs, ignore_index=True)
+            combined = pd.concat(dfs, ignore_index=True)
+            st.session_state["combined_df"] = combined
+            logger.info(f"Successfully combined {len(dfs)} dataframes into {len(combined)} rows")
             st.success("✅ Files processed successfully! Now choose an output format below.")
         else:
+            logger.warning("No data found in the selected files")
             st.warning("No data found in the selected files.")
 
     print(st.session_state["combined_df"])
@@ -171,9 +147,11 @@ if "combined_df" in st.session_state and st.session_state["combined_df"] is not 
         )
 
         if output_format == "Excel":
+            logger.info(f"Exporting {len(combined_df)} rows to Excel format")
             output = io.BytesIO()
             combined_df.to_excel(output, index=False, engine="xlsxwriter")
             output.seek(0)
+            logger.info("Excel file ready for download")
             st.download_button(
                 label="📥 Download Excel",
                 data=output,
@@ -181,6 +159,7 @@ if "combined_df" in st.session_state and st.session_state["combined_df"] is not 
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
         elif output_format == "CSV":
+            logger.info(f"Exporting {len(combined_df)} rows to CSV format")
             csv_data = combined_df.to_csv(index=False).encode("utf-8")
             st.download_button(
                 label="📥 Download CSV",
