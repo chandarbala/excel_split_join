@@ -33,12 +33,7 @@ logger.info("Excel Processing Tool Started")
 st.set_page_config(page_title="Data Processing Tool")
 
 st.image(path + "/logo.png",width=100) 
-#        <img src="{path}/asset/cmwssb_logo.jpeg" width="100">
 st.header("Data Processing Tool")
-#st.image()
-#st.title("Welcome to CMWSSB Data Processing Tool")
-
-
 # ✅ Safe initialization for session_state keys
 for key, default in {
     "combined_df": None,
